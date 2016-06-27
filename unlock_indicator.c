@@ -51,6 +51,8 @@ extern char *modifier_string;
 /* A Cairo surface containing the specified image (-i), if any. */
 extern cairo_surface_t *img;
 
+/* Whether the image should be scaled. */
+extern bool scale;
 /* Whether the image should be tiled. */
 extern bool tile;
 /* The background color to use (in hex). */
@@ -115,9 +117,19 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
     cairo_t *xcb_ctx = cairo_create(xcb_output);
 
     if (img) {
-        if (!tile) {
+        if (!scale && !tile) {
             cairo_set_source_surface(xcb_ctx, img, 0, 0);
             cairo_paint(xcb_ctx);
+        } else if (scale) {
+            cairo_surface_t *xcb_img = cairo_xcb_surface_create(conn, bg_pixmap, vistype, resolution[0], resolution[1]);
+            cairo_t *xcb_img_ctx = cairo_create(xcb_img);
+            cairo_scale(xcb_img_ctx, (double)resolution[0] / (double)cairo_image_surface_get_width(img), (double)resolution[1] / (double)cairo_image_surface_get_height(img));
+            cairo_set_source_surface(xcb_img_ctx, img, 0, 0);
+            cairo_paint(xcb_img_ctx);
+            cairo_set_source_surface(xcb_ctx, xcb_img, 0, 0);
+            cairo_paint(xcb_ctx);
+            cairo_destroy(xcb_img_ctx);
+            cairo_surface_destroy(xcb_img);
         } else {
             /* create a pattern and fill a rectangle as big as the screen */
             cairo_pattern_t *pattern;
